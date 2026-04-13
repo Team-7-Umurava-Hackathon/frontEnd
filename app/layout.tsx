@@ -1,12 +1,11 @@
 "use client";
 
 import "./globals.css";
-import { Provider } from "react-redux";
-import { store } from "@/store/store";
 import "@fontsource/work-sans/400.css";
 import "@fontsource/work-sans/500.css";
 import "@fontsource/work-sans/600.css";
 import "@fontsource/work-sans/700.css";
+import Navbar from "@/components/Navbar";
 
 
 export default function RootLayout({
@@ -17,7 +16,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="font-sans">
-        <Provider store={store}>{children}</Provider>
+          <Navbar />
+        {children}
       </body>
     </html>
   );
