@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { getUser, logout } from "@/lib/auth";
 
 const navItems = [
   {
@@ -52,19 +51,55 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const [user, setUser] = useState<any>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const u = getUser();
-    if (!u) router.push("/login");
-    else setUser(u);
-  }, []);
+    // Check if token exists in localStorage
+    const token = localStorage.getItem("token");
+    const userStr = localStorage.getItem("user");
+
+    if (!token || !userStr) {
+      router.push("/login");
+      return;
+    }
+
+    try {
+      const userData = JSON.parse(userStr);
+      setUser(userData);
+    } catch (error) {
+      console.error("Failed to parse user data:", error);
+      router.push("/login");
+    } finally {
+      setLoading(false);
+    }
+  }, [router]);
 
   const handleLogout = () => {
-    logout();
+    // Clear localStorage
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    
+    // Redirect to login
     router.push("/login");
   };
 
-  if (!user) return null;
+  if (loading || !user) return null;
+
+  // Generate avatar from user name or email
+  const getAvatar = () => {
+    if (user.name) {
+      return user.name.charAt(0).toUpperCase();
+    }
+    if (user.email) {
+      return user.email.charAt(0).toUpperCase();
+    }
+    return "U";
+  };
+
+  // Get user name for display
+  const getUserName = () => {
+    return user.name || user.email || "User";
+  };
 
   return (
     <div className="min-h-screen bg-background flex font-sans">
@@ -80,11 +115,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Sidebar */}
       <aside className={`
         fixed top-0 left-0 h-full w-64 bg-white border-r z-30 flex flex-col transition-transform duration-300
-        ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0 md:static md:z-auto
+        ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0 md:fixed md:z-20
       `}>
         {/* Logo */}
         <div className="px-6 py-5 border-b">
-          <h1 className="text-xl font-bold text-primary">AI Recruiter</h1>
+          <Link href="/">
+        <h1 className="text-xl font-bold text-primary">AI Recruiter</h1>
+      </Link>
           <p className="text-xs text-gray-400 mt-0.5">Recruiter Dashboard</p>
         </div>
 
@@ -108,11 +145,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="px-4 py-5 border-t">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-9 h-9 rounded-full bg-primary text-white text-sm font-bold flex items-center justify-center">
-              {user.avatar}
+              {getAvatar()}
             </div>
             <div>
-              <p className="text-sm font-semibold text-gray-800">{user.name}</p>
-              <p className="text-xs text-gray-400">{user.role}</p>
+              <p className="text-sm font-semibold text-gray-800">{getUserName()}</p>
+              <p className="text-xs text-gray-400">{user.email}</p>
             </div>
           </div>
           <button
@@ -125,7 +162,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* Main */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 md:ml-64">
 
         {/* Topbar */}
         <header className="bg-white border-b px-6 py-4 flex items-center justify-between sticky top-0 z-10">
@@ -146,9 +183,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           <div className="flex items-center gap-3 ml-auto">
             <div className="w-8 h-8 rounded-full bg-primary text-white text-sm font-bold flex items-center justify-center">
-              {user.avatar}
+              {getAvatar()}
             </div>
-            <span className="text-sm font-medium text-gray-700 hidden md:block">{user.name}</span>
+            <span className="text-sm font-medium text-gray-700 hidden md:block">{getUserName()}</span>
           </div>
         </header>
 

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { login } from "@/lib/auth";
 
 const EyeIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -58,7 +57,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setError("");
 
     if (!email || !password) {
@@ -71,21 +70,87 @@ export default function LoginPage() {
         setError("Passwords do not match.");
         return;
       }
-      // For now, register is not implemented — dummy auth only supports login
-      setError("Registration is not available. Use the demo credentials below.");
+      // Handle register
+      await handleRegister();
       return;
     }
 
+    // Handle login
+    await handleLogin();
+  };
+ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+  const handleLogin = async () => {
     setLoading(true);
-    setTimeout(() => {
-      const success = login(email, password);
-      if (success) {
-        router.push("/dashboard");
-      } else {
-        setError("Invalid email or password.");
+    try {
+      const response = await fetch(`${API_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || "Login failed. Please try again.");
         setLoading(false);
+        return;
       }
-    }, 600);
+
+      // Store token in localStorage
+      if (data.token) {
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("user", JSON.stringify(data.user));
+      }
+
+      // Redirect to dashboard
+      router.push("/dashboard");
+    } catch (err) {
+      console.error("Login error:", err);
+      setError("An error occurred. Please try again.");
+      setLoading(false);
+    }
+  };
+
+  const handleRegister = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/auth/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || "Registration failed. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      // Store token in localStorage
+      if (data.token) {
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("user", JSON.stringify(data.user));
+      }
+
+      // Redirect to dashboard
+      router.push("/dashboard");
+    } catch (err) {
+      console.error("Register error:", err);
+      setError("An error occurred. Please try again.");
+      setLoading(false);
+    }
   };
 
   const handleModeSwitch = (newMode: "login" | "register") => {
@@ -135,10 +200,15 @@ export default function LoginPage() {
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-primary"
+            disabled={loading}
+            className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
           />
 
-          <PasswordInput placeholder="Password" value={password} onChange={setPassword} />
+          <PasswordInput 
+            placeholder="Password" 
+            value={password} 
+            onChange={setPassword}
+          />
 
           {mode === "register" && (
             <PasswordInput
@@ -149,7 +219,7 @@ export default function LoginPage() {
           )}
 
           {error && (
-            <p className="text-red-500 text-sm">{error}</p>
+            <p className="text-red-500 text-sm bg-red-50 p-3 rounded-lg">{error}</p>
           )}
 
           <button
@@ -157,15 +227,15 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full py-3 rounded-xl bg-primary text-white font-medium hover:opacity-90 transition disabled:opacity-60"
           >
-            {loading ? "Logging in..." : mode === "login" ? "Login" : "Create Account"}
+            {loading ? (mode === "login" ? "Logging in..." : "Creating Account...") : (mode === "login" ? "Login" : "Create Account")}
           </button>
         </div>
 
         {/* Demo credentials hint */}
         {mode === "login" && (
           <p className="text-xs text-center text-gray-400 mt-3">
-            Demo: <span className="font-medium text-gray-500">admin@umurava.com</span> /{" "}
-            <span className="font-medium text-gray-500">password123</span>
+            Demo: <span className="font-medium text-gray-500">john@company.com</span> /{" "}
+            <span className="font-medium text-gray-500">123456</span>
           </p>
         )}
 

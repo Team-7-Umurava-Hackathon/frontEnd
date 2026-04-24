@@ -1,38 +1,38 @@
 "use client";
 
-import { useState } from "react";
-import { jobs as initialJobs } from "@/data/jobs";
-import { applicants } from "@/lib/dummyData";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 type Job = {
-  id: string;
+  _id: string;
   title: string;
   company: string;
-  shortDescription: string;
   description: string;
+  location: string;
   skills: string[];
   requirements: string[];
   experience: string;
-  deadline: string;
+  applicationDeadline: string;
 };
 
-const EMPTY_JOB: Omit<Job, "id"> = {
+const EMPTY_JOB: Omit<Job, "_id"> = {
   title: "",
-  company: "Umurava",
-  shortDescription: "",
+  company: "",
   description: "",
+  location: "",
   skills: [],
   requirements: [],
   experience: "",
-  deadline: "",
+  applicationDeadline: "",
 };
 
 type ModalMode = "add" | "edit" | null;
 
 export default function JobsPage() {
-  const [jobs, setJobs] = useState<Job[]>(initialJobs);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   // Modal state
   const [modalMode, setModalMode] = useState<ModalMode>(null);
@@ -40,9 +40,42 @@ export default function JobsPage() {
   const [form, setForm] = useState(EMPTY_JOB);
   const [skillInput, setSkillInput] = useState("");
   const [requirementInput, setRequirementInput] = useState("");
+  const [saving, setSaving] = useState(false);
 
   // Delete confirm
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+  // Fetch jobs
+  useEffect(() => {
+    const fetchJobs = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(`${API_URL}/jobs`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!res.ok) throw new Error("Failed to fetch jobs");
+        const data = await res.json();
+        setJobs(data.jobs || []);
+        setError("");
+      } catch (err) {
+        console.error("Error fetching jobs:", err);
+        setError(err instanceof Error ? err.message : "Failed to load jobs");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (token) {
+      fetchJobs();
+    }
+  }, [token]);
 
   const filtered = jobs.filter((j) =>
     j.title.toLowerCase().includes(search.toLowerCase())
@@ -61,12 +94,12 @@ export default function JobsPage() {
     setForm({
       title: job.title,
       company: job.company,
-      shortDescription: job.shortDescription,
       description: job.description,
+      location: job.location,
       skills: [...job.skills],
       requirements: [...job.requirements],
       experience: job.experience,
-      deadline: job.deadline,
+      applicationDeadline: job.applicationDeadline,
     });
     setSkillInput("");
     setRequirementInput("");
@@ -91,28 +124,105 @@ export default function JobsPage() {
   };
 
   // ── SAVE ──────────────────────────────────────────────────
-  const handleSave = () => {
-    if (!form.title.trim() || !form.deadline.trim()) return;
+  const handleSave = async () => {
+    if (!form.title.trim() || !form.applicationDeadline.trim()) return;
 
-    if (modalMode === "add") {
-      const newJob: Job = {
-        ...form,
-        id: Date.now().toString(),
+    setSaving(true);
+    try {
+      // Prepare payload - only send fields the API expects
+      const payload = {
+        title: form.title,
+        company: form.company,
+        description: form.description,
+        location: form.location,
+        experience: form.experience,
+        skills: form.skills,
+        applicationDeadline: form.applicationDeadline,
+        requirements: form.requirements,
       };
-      setJobs((p) => [newJob, ...p]);
-    } else if (modalMode === "edit" && editingJob) {
-      setJobs((p) =>
-        p.map((j) => (j.id === editingJob.id ? { ...form, id: j.id } : j))
-      );
+
+      if (modalMode === "add") {
+        const res = await fetch(`${API_URL}/jobs`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) throw new Error("Failed to create job");
+        const data = await res.json();
+        setJobs((p) => [data.job, ...p]);
+      } else if (modalMode === "edit" && editingJob) {
+        const res = await fetch(`${API_URL}/jobs/${editingJob._id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) throw new Error("Failed to update job");
+        const data = await res.json();
+        setJobs((p) =>
+          p.map((j) => (j._id === editingJob._id ? data.job : j))
+        );
+      }
+      closeModal();
+    } catch (err) {
+      console.error("Error saving job:", err);
+      alert(err instanceof Error ? err.message : "Failed to save job");
+    } finally {
+      setSaving(false);
     }
-    closeModal();
   };
 
   // ── DELETE ────────────────────────────────────────────────
-  const handleDelete = (id: string) => {
-    setJobs((p) => p.filter((j) => j.id !== id));
-    setDeleteId(null);
+  const handleDelete = async (id: string) => {
+    setDeleting(true);
+    try {
+      const res = await fetch(`${API_URL}/jobs/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) throw new Error("Failed to delete job");
+      setJobs((p) => p.filter((j) => j._id !== id));
+      setDeleteId(null);
+    } catch (err) {
+      console.error("Error deleting job:", err);
+      alert(err instanceof Error ? err.message : "Failed to delete job");
+    } finally {
+      setDeleting(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-gray-800">Jobs</h1>
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-gray-800">Jobs</h1>
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-6">
+          <p className="text-red-600 font-medium">Error: {error}</p>
+          <p className="text-red-500 text-sm mt-2">Make sure your backend is running at {API_URL}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -150,11 +260,14 @@ export default function JobsPage() {
       {/* Job Cards */}
       <div className="grid md:grid-cols-2 gap-4">
         {filtered.map((job) => {
-          const count = applicants.filter((a) => a.appliedJobId === job.id).length;
-          const shortlisted = applicants.filter((a) => a.appliedJobId === job.id && a.status === "shortlisted").length;
+          const deadline = new Date(job.applicationDeadline).toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          });
 
           return (
-            <div key={job.id} className="bg-white border rounded-2xl p-6 space-y-4">
+            <div key={job._id} className="bg-white border rounded-2xl p-6 space-y-4">
               <div className="flex items-start justify-between">
                 <div>
                   <h3 className="font-semibold text-gray-800">{job.title}</h3>
@@ -176,7 +289,7 @@ export default function JobsPage() {
                   </button>
                   {/* Delete */}
                   <button
-                    onClick={() => setDeleteId(job.id)}
+                    onClick={() => setDeleteId(job._id)}
                     className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition"
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -187,34 +300,32 @@ export default function JobsPage() {
                 </div>
               </div>
 
-              <p className="text-sm text-gray-600">{job.shortDescription}</p>
+              <p className="text-sm text-gray-600">{job.description.substring(0, 100)}...</p>
 
               <div className="flex flex-wrap gap-2">
-                {job.skills.map((s) => (
+                {job.skills.slice(0, 3).map((s) => (
                   <span key={s} className="text-xs bg-lightBlue text-primary px-3 py-1 rounded-full">{s}</span>
                 ))}
+                {job.skills.length > 3 && (
+                  <span className="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-full">+{job.skills.length - 3}</span>
+                )}
               </div>
 
               <div className="flex items-center justify-between text-sm text-gray-500 border-t pt-4">
-                <span>📅 {job.deadline}</span>
-                <div className="flex gap-4">
-                  <span>{count} applicants</span>
-                  <span className="text-green-600">{shortlisted} shortlisted</span>
-                </div>
+                <span>📅 {deadline}</span>
+                <Link href={`/dashboard/jobs/${job._id}`}>
+                  <button className="text-primary hover:underline font-medium">
+                    View Applicants
+                  </button>
+                </Link>
               </div>
-
-              <Link href={`/dashboard/jobs/${job.id}`}>
-                <button className="w-full py-2 rounded-xl bg-primary text-white text-sm font-medium hover:opacity-90 transition">
-                  View Applicants & Screen
-                </button>
-              </Link>
             </div>
           );
         })}
 
         {filtered.length === 0 && (
           <div className="col-span-2 text-center py-16 text-gray-400">
-            <p className="text-sm">No jobs found. Add your first position.</p>
+            <p className="text-sm">No jobs found. {jobs.length === 0 ? "Add your first position." : "Try a different search."}</p>
           </div>
         )}
       </div>
@@ -245,7 +356,7 @@ export default function JobsPage() {
                 <input
                   value={form.title}
                   onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-                  placeholder="e.g. Frontend Developer"
+                  placeholder="e.g. Senior Backend Engineer"
                   className="w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
@@ -255,16 +366,7 @@ export default function JobsPage() {
                 <input
                   value={form.company}
                   onChange={(e) => setForm((p) => ({ ...p, company: e.target.value }))}
-                  className="w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Short Description</label>
-                <input
-                  value={form.shortDescription}
-                  onChange={(e) => setForm((p) => ({ ...p, shortDescription: e.target.value }))}
-                  placeholder="One-line summary"
+                  placeholder="Company name"
                   className="w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
@@ -276,6 +378,16 @@ export default function JobsPage() {
                   onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
                   placeholder="Detailed job description..."
                   className="w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary min-h-24 resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Location</label>
+                <input
+                  value={form.location}
+                  onChange={(e) => setForm((p) => ({ ...p, location: e.target.value }))}
+                  placeholder="e.g. Remote, Kigali, New York"
+                  className="w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
 
@@ -293,8 +405,8 @@ export default function JobsPage() {
                   <label className="text-xs text-gray-500 block mb-1">Deadline *</label>
                   <input
                     type="date"
-                    value={form.deadline}
-                    onChange={(e) => setForm((p) => ({ ...p, deadline: e.target.value }))}
+                    value={form.applicationDeadline}
+                    onChange={(e) => setForm((p) => ({ ...p, applicationDeadline: e.target.value }))}
                     className="w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
@@ -381,10 +493,10 @@ export default function JobsPage() {
               </button>
               <button
                 onClick={handleSave}
-                disabled={!form.title.trim() || !form.deadline.trim()}
+                disabled={!form.title.trim() || !form.applicationDeadline.trim() || saving}
                 className="px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:opacity-90 transition disabled:opacity-50"
               >
-                {modalMode === "add" ? "Create Job" : "Save Changes"}
+                {saving ? "Saving..." : (modalMode === "add" ? "Create Job" : "Save Changes")}
               </button>
             </div>
           </div>
@@ -422,9 +534,10 @@ export default function JobsPage() {
               </button>
               <button
                 onClick={() => handleDelete(deleteId)}
-                className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-medium hover:opacity-90 transition"
+                disabled={deleting}
+                className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-medium hover:opacity-90 transition disabled:opacity-50"
               >
-                Delete
+                {deleting ? "Deleting..." : "Delete"}
               </button>
             </div>
           </div>

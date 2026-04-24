@@ -1,304 +1,762 @@
 "use client";
 
 import { useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 
 export default function ApplyPage() {
-  const [resumeOption, setResumeOption] = useState<"manual" | "upload" | "link">("manual");
+  const { id } = useParams();
+  const router = useRouter();
 
-  // ================= SKILLS =================
-  const [skills, setSkills] = useState<any[]>([]);
-  const [currentSkill, setCurrentSkill] = useState({ skill: "", proficiency: "", years: "" });
+   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
-  // ================= EXPERIENCE =================
-  const [experiences, setExperiences] = useState<any[]>([]);
-  const [currentExperience, setCurrentExperience] = useState({
-    company: "", role: "", startDate: "", endDate: "", responsibilities: "", technologies: "",
+  const [method, setMethod] = useState<"manual" | "upload" | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+
+  // ================= BASIC INFO =================
+  const [basic, setBasic] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    location: "",
+    headline: "",
+    bio: "",
   });
 
-  // ================= LANGUAGES =================
-  const [languages, setLanguages] = useState<any[]>([]);
-  const [currentLanguage, setCurrentLanguage] = useState({ name: "", proficiency: "" });
-
-  // ================= EDUCATION =================
-  const [education, setEducation] = useState<any[]>([]);
-  const [currentEducation, setCurrentEducation] = useState({
-    institution: "", degree: "", fieldOfStudy: "", startYear: "", endYear: "",
-  });
-
-  // ================= CERTIFICATIONS =================
-  const [certifications, setCertifications] = useState<any[]>([]);
-  const [currentCertification, setCurrentCertification] = useState({ name: "", issuer: "", issueDate: "" });
-
-  // ================= PROJECTS =================
-  const [projects, setProjects] = useState<any[]>([]);
-  const [currentProject, setCurrentProject] = useState({
-    name: "", description: "", role: "", link: "", startDate: "", endDate: "", technologies: "",
-  });
-
-  // ================= GENERIC HANDLER =================
-  const handleChange =
-    (setter: any, state: any) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-      setter({ ...state, [e.target.name]: e.target.value });
-    };
-
-  // ================= GENERIC ADD =================
-  const addItem = (list: any[], setList: any, item: any, reset: () => void) => {
-    const isEmpty = Object.values(item).every((v) => v === "");
-    if (isEmpty) return;
-    setList([...list, item]);
-    reset();
+  const handleBasicChange = (e: any) => {
+    setBasic({ ...basic, [e.target.name]: e.target.value });
   };
 
-  // ================= EXPERIENCE HANDLERS =================
-  const handleExperienceChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    setCurrentExperience((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  // ================= Type Definitions =================
+  type Skill = { name: string; level: string; yearsOfExperience: number };
+  type Language = { name: string; proficiency: string };
+  type Experience = {
+    company: string;
+    role: string;
+    startDate: string;
+    endDate: string;
+    description: string;
+    technologies: string;
+  };
+  type Education = {
+    institution: string;
+    degree: string;
+    fieldOfStudy: string;
+    startYear: string;
+    endYear: string;
+  };
+  type Certification = { name: string; issuer: string; issueDate: string };
+  type Project = {
+    name: string;
+    role: string;
+    link: string;
+    startDate: string;
+    endDate: string;
+    description: string;
+    technologies: string;
   };
 
+  // ================= DETAILED FORM STATE =================
+  const [skills, setSkills] = useState<Skill[]>([]);
+  const [currentSkill, setCurrentSkill] = useState<Skill>({ name: "", level: "Beginner", yearsOfExperience: 0 });
+  const handleSkillChange = (setter: any, state: any) => (e: any) => {
+    setter({ ...state, [e.target.name]: e.target.value });
+  };
+  const addSkill = () => {
+    if (currentSkill.name && currentSkill.level && currentSkill.yearsOfExperience >= 0) {
+      setSkills([...skills, currentSkill]);
+      setCurrentSkill({ name: "", level: "Beginner", yearsOfExperience: 0 });
+    }
+  };
+  const removeSkill = (index: number) => {
+    setSkills(skills.filter((_, i) => i !== index));
+  };
+
+  const [languages, setLanguages] = useState<Language[]>([]);
+  const [currentLanguage, setCurrentLanguage] = useState<Language>({ name: "", proficiency: "Basic" });
+  const handleLanguageChange = (setter: any, state: any) => (e: any) => {
+    setter({ ...state, [e.target.name]: e.target.value });
+  };
+  const addLanguage = () => {
+    if (currentLanguage.name) {
+      setLanguages([...languages, currentLanguage]);
+      setCurrentLanguage({ name: "", proficiency: "Basic" });
+    }
+  };
+  const removeLanguage = (index: number) => {
+    setLanguages(languages.filter((_, i) => i !== index));
+  };
+
+  const [experiences, setExperiences] = useState<Experience[]>([]);
+  const [currentExperience, setCurrentExperience] = useState<Experience>({
+    company: "",
+    role: "",
+    startDate: "",
+    endDate: "",
+    description: "",
+    technologies: "",
+  });
+  const handleExperienceChange = (setter: any, state: any) => (e: any) => {
+    setter({ ...state, [e.target.name]: e.target.value });
+  };
   const addExperience = () => {
-    addItem(experiences, setExperiences, currentExperience, () =>
-      setCurrentExperience({ company: "", role: "", startDate: "", endDate: "", responsibilities: "", technologies: "" })
-    );
+    if (currentExperience.company && currentExperience.role) {
+      setExperiences([...experiences, currentExperience]);
+      setCurrentExperience({ company: "", role: "", startDate: "", endDate: "", description: "", technologies: "" });
+    }
+  };
+  const removeExperience = (index: number) => {
+    setExperiences(experiences.filter((_, i) => i !== index));
   };
 
-  const removeExperience = (index: number) =>
-    setExperiences((prev) => prev.filter((_, i) => i !== index));
+  const [education, setEducation] = useState<Education[]>([]);
+  const [currentEducation, setCurrentEducation] = useState<Education>({
+    institution: "",
+    degree: "",
+    fieldOfStudy: "",
+    startYear: "",
+    endYear: "",
+  });
+  const handleEducationChange = (setter: any, state: any) => (e: any) => {
+    setter({ ...state, [e.target.name]: e.target.value });
+  };
+  const addEducation = () => {
+    if (currentEducation.institution && currentEducation.degree) {
+      setEducation([...education, currentEducation]);
+      setCurrentEducation({ institution: "", degree: "", fieldOfStudy: "", startYear: "", endYear: "" });
+    }
+  };
+  const removeEducation = (index: number) => {
+    setEducation(education.filter((_, i) => i !== index));
+  };
 
+  const [certifications, setCertifications] = useState<Certification[]>([]);
+  const [currentCertification, setCurrentCertification] = useState<Certification>({ name: "", issuer: "", issueDate: "" });
+  const handleCertificationChange = (setter: any, state: any) => (e: any) => {
+    setter({ ...state, [e.target.name]: e.target.value });
+  };
+  const addCertification = () => {
+    if (currentCertification.name && currentCertification.issuer) {
+      setCertifications([...certifications, currentCertification]);
+      setCurrentCertification({ name: "", issuer: "", issueDate: "" });
+    }
+  };
+  const removeCertification = (index: number) => {
+    setCertifications(certifications.filter((_, i) => i !== index));
+  };
+
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [currentProject, setCurrentProject] = useState<Project>({ name: "", role: "", link: "", startDate: "", endDate: "", description: "", technologies: "" });
+  const handleProjectChange = (setter: any, state: any) => (e: any) => {
+    setter({ ...state, [e.target.name]: e.target.value });
+  };
+  const addProject = () => {
+    if (currentProject.name && currentProject.role) {
+      setProjects([...projects, currentProject]);
+      setCurrentProject({ name: "", role: "", link: "", startDate: "", endDate: "", description: "", technologies: "" });
+    }
+  };
+  const removeProject = (index: number) => {
+    setProjects(projects.filter((_, i) => i !== index));
+  };
+
+  // ================= SUBMIT HANDLERS =================
+  const handleSubmit = async (e: any) => {
+    e.preventDefault();
+
+    if (!basic.firstName || !basic.lastName || !basic.email) {
+      alert("Fill required fields");
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      const payload = {
+        ...basic,
+        skills,
+        languages,
+        experiences,
+        education,
+        certifications,
+        projects,
+        job: id,
+      };
+
+      const res = await fetch(`${API_URL}/talents/${id}/apply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        window.alert("Unable to submit your application. Please try again later.");
+        return;
+      }
+      alert("Application submitted!");
+      router.push("/jobs");
+    } catch (err) {
+      console.error(err);
+      alert("Submission failed");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handlePDFSubmit = async () => {
+    if (!resumeFile) {
+      alert("Select a PDF file");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", resumeFile);
+      formData.append("jobId", id as string);
+
+      const res = await fetch(`${API_URL}/talents/upload/pdf?type=pdf`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        window.alert("Unable to submit your application. Please try again later.");
+        return;
+      }
+      alert("Resume uploaded successfully!");
+      router.push("/jobs");
+    } catch (err) {
+      console.error(err);
+      alert("Upload failed");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Render
   return (
-    <div className="min-h-screen bg-background px-4 py-10 font-sans">
-      <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-md p-8">
-        <h1 className="text-3xl font-bold text-primary">Talent Profile Application</h1>
-        <p className="text-gray-500 mt-2">Complete your profile to apply for this position.</p>
+    <div className="min-h-screen bg-background px-4 py-10">
+      <div className="max-w-4xl mx-auto bg-white rounded-2xl p-8">
+        <h1 className="text-3xl font-bold text-primary mb-6">Apply for this position</h1>
 
-        <section className="mt-8">
-          <h2 className="text-xl font-semibold text-primary mb-4">Application Method</h2>
-          <p className="text-gray-500 mb-4">
-            Choose only one way to submit your profile: fill the form manually, upload a PDF resume, or share a resume link.
-          </p>
-          <div className="flex flex-wrap gap-4 mb-6">
-            {(["manual", "upload", "link"] as const).map((value) => (
+        {/* Method selection */}
+        {!method && (
+          <div className="space-y-4 mb-8">
+            <p className="text-gray-600">Choose how you want to apply</p>
+            <div className="flex gap-4">
               <button
-                key={value}
-                type="button"
-                onClick={() => setResumeOption(value)}
-                className={`px-4 py-2 rounded-xl capitalize ${
-                  resumeOption === value ? "bg-primary text-white" : "bg-lightBlue text-primary"
-                }`}
+                onClick={() => setMethod("manual")}
+                className="flex-1 py-4 rounded-xl bg-primary text-white font-semibold"
               >
-                {value === "manual" ? "Fill Manually" : value === "upload" ? "Upload PDF" : "Resume Link"}
+                Fill Form Manually
               </button>
-            ))}
+              <button
+                onClick={() => setMethod("upload")}
+                className="flex-1 py-4 rounded-xl bg-lightBlue text-primary font-semibold"
+              >
+                Upload PDF Resume
+              </button>
+            </div>
           </div>
-          {resumeOption === "upload" && (
-            <input type="file" accept=".pdf" className="w-full border rounded-xl px-4 py-3" />
-          )}
-          {resumeOption === "link" && (
-            <input className="w-full border rounded-xl px-4 py-3" placeholder="Paste resume URL" />
-          )}
-        </section>
+        )}
 
-        <form className="mt-8 space-y-10">
-          {resumeOption === "manual" && (
-            <>
-              {/* ================= BASIC INFO ================= */}
-              <section>
-                <h2 className="text-xl font-semibold text-primary mb-4">Basic Information</h2>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <input className="w-full border rounded-xl px-4 py-3" placeholder="First Name" />
-                  <input className="w-full border rounded-xl px-4 py-3" placeholder="Last Name" />
-                  <input type="email" className="w-full border rounded-xl px-4 py-3" placeholder="Email" />
-                  <input className="w-full border rounded-xl px-4 py-3" placeholder="Location (City, Country)" />
-                </div>
-                <input className="w-full border rounded-xl px-4 py-3 mt-4" placeholder="Professional Headline" />
-                <textarea className="w-full border rounded-xl px-4 py-3 mt-4 min-h-32" placeholder="Professional Bio (optional)" />
-              </section>
+        {/* Manual form */}
+        {method === "manual" && (
+          <form onSubmit={handleSubmit} className="space-y-8">
+            <button
+              type="button"
+              onClick={() => setMethod(null)}
+              className="text-sm text-primary underline mb-4"
+            >
+              ← Change method
+            </button>
 
-              {/* ================= SKILLS ================= */}
-              <section>
-                <h2 className="text-xl font-semibold text-primary mb-4">Skills</h2>
+            {/* Basic Info */}
+            <div className="grid md:grid-cols-2 gap-4 mb-4">
+              <input
+                name="firstName"
+                placeholder="First Name *"
+                value={basic.firstName}
+                onChange={handleBasicChange}
+                className="border rounded-xl p-3"
+              />
+              <input
+                name="lastName"
+                placeholder="Last Name *"
+                value={basic.lastName}
+                onChange={handleBasicChange}
+                className="border rounded-xl p-3"
+              />
+              <input
+                name="email"
+                placeholder="Email *"
+                value={basic.email}
+                onChange={handleBasicChange}
+                className="border rounded-xl p-3 md:col-span-2"
+              />
+              <input
+                name="location"
+                placeholder="Location"
+                value={basic.location}
+                onChange={handleBasicChange}
+                className="border rounded-xl p-3"
+              />
+              <input
+                name="headline"
+                placeholder="Headline (e.g. Senior Developer)"
+                value={basic.headline}
+                onChange={handleBasicChange}
+                className="border rounded-xl p-3 md:col-span-2"
+              />
+              <textarea
+                name="bio"
+                placeholder="Bio / About You"
+                value={basic.bio}
+                onChange={handleBasicChange}
+                className="border rounded-xl p-3 md:col-span-2 min-h-24 resize-none"
+              />
+            </div>
+
+            {/* Skills */}
+            <section>
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Skills</h2>
+              <div className="space-y-3 mb-4">
                 {skills.map((s, i) => (
-                  <div key={i} className="p-3 bg-lightBlue rounded-xl mb-2">
-                    {s.skill} • {s.proficiency} • {s.years} yrs
+                  <div key={i} className="flex items-center justify-between p-4 bg-lightBlue rounded-xl">
+                    <div>
+                      <p className="font-medium text-gray-800">{s.name}</p>
+                      <p className="text-xs text-gray-500">{s.level} • {s.yearsOfExperience} years</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeSkill(i)}
+                      className="text-red-500 hover:text-red-700 font-bold"
+                    >
+                      ×
+                    </button>
                   </div>
                 ))}
-                <div className="grid md:grid-cols-3 gap-4">
-                  <input name="skill" value={currentSkill.skill} onChange={handleChange(setCurrentSkill, currentSkill)} className="border p-2 rounded" placeholder="Skill" />
-                  <select name="proficiency" value={currentSkill.proficiency} onChange={handleChange(setCurrentSkill, currentSkill)} className="border p-2 rounded">
-                    <option value="">Proficiency</option>
-                    <option>Beginner</option>
-                    <option>Intermediate</option>
-                    <option>Advanced</option>
-                    <option>Expert</option>
-                  </select>
-                  <input name="years" value={currentSkill.years} onChange={handleChange(setCurrentSkill, currentSkill)} className="border p-2 rounded" placeholder="Years" />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => addItem(skills, setSkills, currentSkill, () => setCurrentSkill({ skill: "", proficiency: "", years: "" }))}
-                  className="mt-3 px-4 py-2 bg-lightBlue rounded"
+              </div>
+              <div className="grid md:grid-cols-3 gap-3 mb-3">
+                <input
+                  placeholder="Skill Name"
+                  value={currentSkill.name}
+                  onChange={handleSkillChange(setCurrentSkill, currentSkill)}
+                  name="name"
+                  className="border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <select
+                  value={currentSkill.level}
+                  onChange={handleSkillChange(setCurrentSkill, currentSkill)}
+                  name="level"
+                  className="border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
                 >
-                  + Add Skill
-                </button>
-              </section>
+                  <option value="Beginner">Beginner</option>
+                  <option value="Intermediate">Intermediate</option>
+                  <option value="Advanced">Advanced</option>
+                  <option value="Expert">Expert</option>
+                </select>
+                <input
+                  type="number"
+                  placeholder="Years"
+                  value={currentSkill.yearsOfExperience}
+                  onChange={handleSkillChange(setCurrentSkill, currentSkill)}
+                  name="yearsOfExperience"
+                  min="0"
+                  className="border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={addSkill}
+                className="px-4 py-2 bg-lightBlue text-primary font-medium rounded-xl hover:opacity-80 transition"
+              >
+                + Add Skill
+              </button>
+            </section>
 
-              {/* ================= LANGUAGES ================= */}
-              <section>
-                <h2 className="text-xl font-semibold text-primary mb-4">Languages</h2>
+            {/* Languages */}
+            <section>
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Languages</h2>
+              <div className="space-y-3 mb-4">
                 {languages.map((l, i) => (
-                  <div key={i} className="p-3 bg-lightBlue rounded-xl mb-2">
-                    {l.name} • {l.proficiency}
+                  <div key={i} className="flex items-center justify-between p-4 bg-lightBlue rounded-xl">
+                    <div>
+                      <p className="font-medium text-gray-800">{l.name}</p>
+                      <p className="text-xs text-gray-500">{l.proficiency}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeLanguage(i)}
+                      className="text-red-500 hover:text-red-700 font-bold"
+                    >
+                      ×
+                    </button>
                   </div>
                 ))}
-                <div className="grid md:grid-cols-2 gap-4">
-                  <input name="name" value={currentLanguage.name} onChange={handleChange(setCurrentLanguage, currentLanguage)} className="border p-2 rounded" placeholder="Language" />
-                  <select name="proficiency" value={currentLanguage.proficiency} onChange={handleChange(setCurrentLanguage, currentLanguage)} className="border p-2 rounded">
-                    <option value="">Proficiency</option>
-                    <option>Basic</option>
-                    <option>Conversational</option>
-                    <option>Fluent</option>
-                    <option>Native</option>
-                  </select>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => addItem(languages, setLanguages, currentLanguage, () => setCurrentLanguage({ name: "", proficiency: "" }))}
-                  className="mt-3 px-4 py-2 bg-lightBlue rounded"
+              </div>
+              <div className="grid md:grid-cols-2 gap-3 mb-3">
+                <input
+                  placeholder="Language"
+                  value={currentLanguage.name}
+                  onChange={handleLanguageChange(setCurrentLanguage, currentLanguage)}
+                  name="name"
+                  className="border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <select
+                  value={currentLanguage.proficiency}
+                  onChange={handleLanguageChange(setCurrentLanguage, currentLanguage)}
+                  name="proficiency"
+                  className="border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
                 >
-                  + Add Language
-                </button>
-              </section>
+                  <option value="Basic">Basic</option>
+                  <option value="Intermediate">Intermediate</option>
+                  <option value="Fluent">Fluent</option>
+                  <option value="Native">Native</option>
+                </select>
+              </div>
+              <button
+                type="button"
+                onClick={addLanguage}
+                className="px-4 py-2 bg-lightBlue text-primary font-medium rounded-xl hover:opacity-80 transition"
+              >
+                + Add Language
+              </button>
+            </section>
 
-              {/* ================= EDUCATION ================= */}
-              <section>
-                <h2 className="text-xl font-semibold text-primary mb-4">Education</h2>
+            {/* Work Experience */}
+            <section>
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Work Experience</h2>
+              <div className="space-y-3 mb-4">
+                {experiences.map((exp, i) => (
+                  <div key={i} className="border rounded-xl p-4 bg-lightBlue relative">
+                    <button
+                      type="button"
+                      onClick={() => removeExperience(i)}
+                      className="absolute top-3 right-3 text-red-500 hover:text-red-700 font-bold text-xl"
+                    >
+                      ×
+                    </button>
+                    <h3 className="font-semibold text-gray-800 pr-6">{exp.role} at {exp.company}</h3>
+                    <p className="text-sm text-gray-600">{exp.startDate} – {exp.endDate || "Present"}</p>
+                    {exp.description && <p className="text-sm text-gray-600 mt-2">{exp.description}</p>}
+                    {exp.technologies && (
+                      <p className="text-xs text-gray-500 mt-2">Tech: {exp.technologies}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="border rounded-xl p-6 bg-gray-50 space-y-4 mb-3">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <input
+                    name="company"
+                    value={currentExperience.company}
+                    onChange={handleExperienceChange(setCurrentExperience, currentExperience)}
+                    className="border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="Company Name"
+                  />
+                  <input
+                    name="role"
+                    value={currentExperience.role}
+                    onChange={handleExperienceChange(setCurrentExperience, currentExperience)}
+                    className="border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="Job Title"
+                  />
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Start Date</label>
+                    <input
+                      type="date"
+                      name="startDate"
+                      value={currentExperience.startDate}
+                      onChange={handleExperienceChange(setCurrentExperience, currentExperience)}
+                      className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">End Date (leave blank if current)</label>
+                    <input
+                      type="date"
+                      name="endDate"
+                      value={currentExperience.endDate}
+                      onChange={handleExperienceChange(setCurrentExperience, currentExperience)}
+                      className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+                <textarea
+                  name="description"
+                  value={currentExperience.description}
+                  onChange={handleExperienceChange(setCurrentExperience, currentExperience)}
+                  className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary min-h-20"
+                  placeholder="Key responsibilities and achievements"
+                />
+                <input
+                  name="technologies"
+                  value={currentExperience.technologies}
+                  onChange={handleExperienceChange(setCurrentExperience, currentExperience)}
+                  className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Technologies used (comma-separated)"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={addExperience}
+                className="px-4 py-2 bg-lightBlue text-primary font-medium rounded-xl hover:opacity-80 transition"
+              >
+                + Add Experience
+              </button>
+            </section>
+
+            {/* Education */}
+            <section>
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Education</h2>
+              <div className="space-y-3 mb-4">
                 {education.map((e, i) => (
-                  <div key={i} className="p-3 bg-lightBlue rounded-xl mb-2">
-                    {e.institution} • {e.degree} • {e.fieldOfStudy}
+                  <div key={i} className="flex items-center justify-between p-4 bg-lightBlue rounded-xl">
+                    <div>
+                      <p className="font-medium text-gray-800">{e.degree} in {e.fieldOfStudy}</p>
+                      <p className="text-xs text-gray-500">{e.institution} • {e.startYear}–{e.endYear}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeEducation(i)}
+                      className="text-red-500 hover:text-red-700 font-bold"
+                    >
+                      ×
+                    </button>
                   </div>
                 ))}
-                <div className="grid md:grid-cols-2 gap-4">
-                  <input name="institution" value={currentEducation.institution} onChange={handleChange(setCurrentEducation, currentEducation)} className="border p-2 rounded" placeholder="Institution" />
-                  <input name="degree" value={currentEducation.degree} onChange={handleChange(setCurrentEducation, currentEducation)} className="border p-2 rounded" placeholder="Degree" />
-                  <input name="fieldOfStudy" value={currentEducation.fieldOfStudy} onChange={handleChange(setCurrentEducation, currentEducation)} className="border p-2 rounded" placeholder="Field" />
-                  <input name="startYear" value={currentEducation.startYear} onChange={handleChange(setCurrentEducation, currentEducation)} className="border p-2 rounded" placeholder="Start Year" />
-                  <input name="endYear" value={currentEducation.endYear} onChange={handleChange(setCurrentEducation, currentEducation)} className="border p-2 rounded" placeholder="End Year" />
+              </div>
+              <div className="grid md:grid-cols-2 gap-3 mb-3">
+                <input
+                  name="institution"
+                  value={currentEducation.institution}
+                  onChange={handleEducationChange(setCurrentEducation, currentEducation)}
+                  className="border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Institution/University"
+                />
+                <input
+                  name="degree"
+                  value={currentEducation.degree}
+                  onChange={handleEducationChange(setCurrentEducation, currentEducation)}
+                  className="border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Degree"
+                />
+                <input
+                  name="fieldOfStudy"
+                  value={currentEducation.fieldOfStudy}
+                  onChange={handleEducationChange(setCurrentEducation, currentEducation)}
+                  className="border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Field of Study"
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="number"
+                    name="startYear"
+                    value={currentEducation.startYear}
+                    onChange={handleEducationChange(setCurrentEducation, currentEducation)}
+                    className="border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="Start Year"
+                  />
+                  <input
+                    type="number"
+                    name="endYear"
+                    value={currentEducation.endYear}
+                    onChange={handleEducationChange(setCurrentEducation, currentEducation)}
+                    className="border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="End Year"
+                  />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => addItem(education, setEducation, currentEducation, () => setCurrentEducation({ institution: "", degree: "", fieldOfStudy: "", startYear: "", endYear: "" }))}
-                  className="mt-3 px-4 py-2 bg-lightBlue rounded"
-                >
-                  + Add Education
-                </button>
-              </section>
+              </div>
+              <button
+                type="button"
+                onClick={addEducation}
+                className="px-4 py-2 bg-lightBlue text-primary font-medium rounded-xl hover:opacity-80 transition"
+              >
+                + Add Education
+              </button>
+            </section>
 
-              {/* ================= EXPERIENCE ================= */}
-              <section>
-                <h2 className="text-xl font-semibold text-primary mb-4">Work Experience</h2>
-                <div className="space-y-4">
-                  {experiences.map((exp, index) => (
-                    <div key={index} className="border rounded-2xl p-4 space-y-2 bg-lightBlue relative">
-                      <button
-                        type="button"
-                        onClick={() => removeExperience(index)}
-                        className="absolute top-3 right-3 w-6 h-6 flex items-center justify-center rounded-full border text-gray-400 hover:text-gray-600 text-sm"
-                      >
-                        ×
-                      </button>
-                      <h3 className="font-semibold text-primary pr-8">{exp.role} at {exp.company}</h3>
-                      <p className="text-sm text-gray-500">{exp.startDate} – {exp.endDate || "Present"}</p>
-                      {exp.responsibilities && <p className="text-sm">{exp.responsibilities}</p>}
-                      {exp.technologies && (
-                        <p className="text-xs text-gray-500 bg-white border rounded-lg px-2 py-1 inline-block">
-                          Tech: {exp.technologies}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-
-                  <div className="border rounded-2xl p-4 space-y-4 bg-gray-50">
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <input name="company" value={currentExperience.company} onChange={handleExperienceChange} className="w-full border rounded-xl px-4 py-3" placeholder="Company Name" />
-                      <input name="role" value={currentExperience.role} onChange={handleExperienceChange} className="w-full border rounded-xl px-4 py-3" placeholder="Role / Position" />
-                      <div>
-                        <label className="text-xs text-gray-500 block mb-1">Start date</label>
-                        <input type="month" name="startDate" value={currentExperience.startDate} onChange={handleExperienceChange} className="w-full border rounded-xl px-4 py-3" />
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-500 block mb-1">End date (leave blank if current)</label>
-                        <input type="month" name="endDate" value={currentExperience.endDate} onChange={handleExperienceChange} className="w-full border rounded-xl px-4 py-3" />
-                      </div>
-                    </div>
-                    <textarea name="responsibilities" value={currentExperience.responsibilities} onChange={handleExperienceChange} className="w-full border rounded-xl px-4 py-3 min-h-24" placeholder="Key responsibilities and achievements" />
-                    <input name="technologies" value={currentExperience.technologies} onChange={handleExperienceChange} className="w-full border rounded-xl px-4 py-3" placeholder="Technologies used" />
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={addExperience}
-                    className="px-5 py-3 rounded-xl bg-lightBlue text-primary font-medium hover:opacity-90 transition"
-                  >
-                    + Add {experiences.length > 0 ? "Another" : ""} Experience
-                  </button>
-                </div>
-              </section>
-
-              {/* ================= CERTIFICATIONS ================= */}
-              <section>
-                <h2 className="text-xl font-semibold text-primary mb-4">Certifications</h2>
+            {/* Certifications */}
+            <section>
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Certifications</h2>
+              <div className="space-y-3 mb-4">
                 {certifications.map((c, i) => (
-                  <div key={i} className="p-3 bg-lightBlue rounded-xl mb-2">
-                    {c.name} • {c.issuer} • {c.issueDate}
+                  <div key={i} className="flex items-center justify-between p-4 bg-lightBlue rounded-xl">
+                    <div>
+                      <p className="font-medium text-gray-800">{c.name}</p>
+                      <p className="text-xs text-gray-500">{c.issuer} • {c.issueDate}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeCertification(i)}
+                      className="text-red-500 hover:text-red-700 font-bold"
+                    >
+                      ×
+                    </button>
                   </div>
                 ))}
-                <div className="grid md:grid-cols-3 gap-4">
-                  <input name="name" value={currentCertification.name} onChange={handleChange(setCurrentCertification, currentCertification)} className="border p-2 rounded" placeholder="Name" />
-                  <input name="issuer" value={currentCertification.issuer} onChange={handleChange(setCurrentCertification, currentCertification)} className="border p-2 rounded" placeholder="Issuer" />
-                  <input name="issueDate" value={currentCertification.issueDate} onChange={handleChange(setCurrentCertification, currentCertification)} className="border p-2 rounded" placeholder="Date" />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => addItem(certifications, setCertifications, currentCertification, () => setCurrentCertification({ name: "", issuer: "", issueDate: "" }))}
-                  className="mt-3 px-4 py-2 bg-lightBlue rounded"
-                >
-                  + Add Certification
-                </button>
-              </section>
+              </div>
+              <div className="grid md:grid-cols-3 gap-3 mb-3">
+                <input
+                  name="name"
+                  value={currentCertification.name}
+                  onChange={handleCertificationChange(setCurrentCertification, currentCertification)}
+                  className="border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Certification Name"
+                />
+                <input
+                  name="issuer"
+                  value={currentCertification.issuer}
+                  onChange={handleCertificationChange(setCurrentCertification, currentCertification)}
+                  className="border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Issuer"
+                />
+                <input
+                  type="date"
+                  name="issueDate"
+                  value={currentCertification.issueDate}
+                  onChange={handleCertificationChange(setCurrentCertification, currentCertification)}
+                  className="border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={addCertification}
+                className="px-4 py-2 bg-lightBlue text-primary font-medium rounded-xl hover:opacity-80 transition"
+              >
+                + Add Certification
+              </button>
+            </section>
 
-              {/* ================= PROJECTS ================= */}
-              <section>
-                <h2 className="text-xl font-semibold text-primary mb-4">Projects</h2>
+            {/* Projects */}
+            <section>
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Projects</h2>
+              <div className="space-y-3 mb-4">
                 {projects.map((p, i) => (
-                  <div key={i} className="p-3 bg-lightBlue rounded-xl mb-2">
-                    {p.name} • {p.role}
+                  <div key={i} className="flex items-center justify-between p-4 bg-lightBlue rounded-xl">
+                    <div>
+                      <p className="font-medium text-gray-800">{p.name}</p>
+                      <p className="text-xs text-gray-500">{p.role} • {p.startDate}–{p.endDate}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeProject(i)}
+                      className="text-red-500 hover:text-red-700 font-bold"
+                    >
+                      ×
+                    </button>
                   </div>
                 ))}
+              </div>
+              <div className="border rounded-xl p-6 bg-gray-50 space-y-4 mb-3">
                 <div className="grid md:grid-cols-2 gap-4">
-                  <input name="name" value={currentProject.name} onChange={handleChange(setCurrentProject, currentProject)} className="border p-2 rounded" placeholder="Project Name" />
-                  <input name="role" value={currentProject.role} onChange={handleChange(setCurrentProject, currentProject)} className="border p-2 rounded" placeholder="Role" />
-                  <input name="link" value={currentProject.link} onChange={handleChange(setCurrentProject, currentProject)} className="border p-2 rounded" placeholder="Link" />
-                  <input name="startDate" value={currentProject.startDate} onChange={handleChange(setCurrentProject, currentProject)} className="border p-2 rounded" placeholder="Start" />
-                  <input name="endDate" value={currentProject.endDate} onChange={handleChange(setCurrentProject, currentProject)} className="border p-2 rounded" placeholder="End" />
-                  <textarea name="description" value={currentProject.description} onChange={handleChange(setCurrentProject, currentProject)} className="border p-2 rounded" placeholder="Desc" />
-                  <input name="technologies" value={currentProject.technologies} onChange={handleChange(setCurrentProject, currentProject)} className="border p-2 rounded" placeholder="Tech" />
+                  <input
+                    name="name"
+                    value={currentProject.name}
+                    onChange={handleProjectChange(setCurrentProject, currentProject)}
+                    className="border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="Project Name"
+                  />
+                  <input
+                    name="role"
+                    value={currentProject.role}
+                    onChange={handleProjectChange(setCurrentProject, currentProject)}
+                    className="border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="Your Role"
+                  />
+                  <input
+                    name="link"
+                    value={currentProject.link}
+                    onChange={handleProjectChange(setCurrentProject, currentProject)}
+                    className="border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="Project Link (URL)"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="date"
+                      name="startDate"
+                      value={currentProject.startDate}
+                      onChange={handleProjectChange(setCurrentProject, currentProject)}
+                      className="border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                    <input
+                      type="date"
+                      name="endDate"
+                      value={currentProject.endDate}
+                      onChange={handleProjectChange(setCurrentProject, currentProject)}
+                      className="border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => addItem(projects, setProjects, currentProject, () => setCurrentProject({ name: "", description: "", role: "", link: "", startDate: "", endDate: "", technologies: "" }))}
-                  className="mt-3 px-4 py-2 bg-lightBlue rounded"
-                >
-                  + Add Project
-                </button>
-              </section>
-            </>
-          )}
+                <textarea
+                  name="description"
+                  value={currentProject.description}
+                  onChange={handleProjectChange(setCurrentProject, currentProject)}
+                  className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary min-h-20"
+                  placeholder="Project Description"
+                />
+                <input
+                  name="technologies"
+                  value={currentProject.technologies}
+                  onChange={handleProjectChange(setCurrentProject, currentProject)}
+                  className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Technologies used (comma-separated)"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={addProject}
+                className="px-4 py-2 bg-lightBlue text-primary font-medium rounded-xl hover:opacity-80 transition"
+              >
+                + Add Project
+              </button>
+            </section>
 
-          <button type="submit" className="w-full bg-primary text-white py-4 rounded-xl font-medium hover:opacity-90 transition">
-            Submit Application
-          </button>
-        </form>
+            {/* Submit Button for detailed form */}
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full bg-primary text-white py-4 rounded-xl font-semibold hover:opacity-90 transition disabled:opacity-50"
+            >
+              {submitting ? "Submitting..." : "Submit Application"}
+            </button>
+          </form>
+        )}
+
+        {/* Upload PDF */}
+        {method === "upload" && (
+          <div className="space-y-6">
+            <button
+              type="button"
+              onClick={() => setMethod(null)}
+              className="text-sm text-primary underline mb-4"
+            >
+              ← Change method
+            </button>
+            <div className="border-2 border-dashed rounded-xl p-6 text-center">
+              <input
+                type="file"
+                accept=".pdf"
+                id="pdf"
+                className="hidden"
+                onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+              />
+              <label htmlFor="pdf" className="cursor-pointer">
+                <p className="font-medium">Upload your PDF resume</p>
+                {resumeFile && <p className="text-green-600 mt-2">✓ {resumeFile.name}</p>}
+              </label>
+            </div>
+            <button
+              onClick={handlePDFSubmit}
+              disabled={submitting}
+              className="w-full bg-primary text-white py-3 rounded-xl"
+            >
+              {submitting ? "Uploading..." : "Submit Resume"}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
