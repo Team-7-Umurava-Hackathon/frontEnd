@@ -1,37 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI Recruiter — Team 7
+
+An AI-powered recruitment platform built with **Next.js 16**, **React 19**, **Tailwind CSS**, and **Gemini AI**. It lets recruiters post jobs, receive applicant profiles, and get instant AI-generated candidate rankings with explainable scores.
+
+---
+
+## Tech Stack
+
+- **Framework:** Next.js 16 (App Router)
+- **UI:** React 19, Tailwind CSS v3
+- **State:** Redux Toolkit + React Redux
+- **Font:** Work Sans (`@fontsource/work-sans`)
+- **AI:** Gemini AI (candidate screening & scoring)
+- **Language:** TypeScript
+
+---
+
+## Project Structure
+
+```
+app/
+├── page.tsx              # Landing page (hero, features, stats)
+├── layout.tsx            # Root layout with Navbar
+├── login/page.tsx        # Recruiter login
+├── jobs/
+│   ├── page.tsx          # Public job listings
+│   └── [id]/
+│       ├── page.tsx      # Job detail
+│       └── apply/        # Candidate application form
+└── dashboard/
+    ├── page.tsx          # Recruiter dashboard home
+    ├── layout.tsx        # Dashboard layout
+    ├── applicants/
+    │   ├── page.tsx      # All applicants list
+    │   └── [id]/page.tsx # Applicant detail + AI score
+    ├── jobs/
+    │   ├── page.tsx      # Manage jobs
+    │   └── [id]/page.tsx # Job-specific applicants
+    └── settings/page.tsx # Account settings
+
+components/
+└── Navbar.tsx            # Top nav with auth state
+
+data/
+└── jobs.ts               # Job listings data
+
+lib/
+├── auth.ts               # Login / logout / session helpers
+└── dummyData.ts          # Applicant profiles + AI screening results
+```
+
+---
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+**Demo credentials:**
+- Email: `admin@umurava.com`
+- Password: `password123`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## Key Features
 
-To learn more about Next.js, take a look at the following resources:
+- **AI Candidate Screening** — Gemini AI ranks applicants by fit score with strengths, gaps, and a hiring recommendation
+- **Recruiter Dashboard** — Manage jobs and applicants in one place
+- **Public Job Board** — Candidates can browse and apply to open positions
+- **Bulk Applicant Support** — Structured applicant profiles with skills, experience, education, and projects
+- **Auth** — Cookie + localStorage-based session (dummy auth for demo)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Scripts
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-# AI-Recruitment_Team7
+| Command | Description |
+|---|---|
+| `npm run dev` | Start dev server |
+| `npm run build` | Production build |
+| `npm run start` | Start production server |
+| `npm run lint` | Run ESLint |
