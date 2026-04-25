@@ -132,12 +132,14 @@ export default function JobDetailPage() {
   // ───────────────── RUN AI SCORING ─────────────────
   const runScreening = async () => {
     setScreening(true);
+    const token = localStorage.getItem("token");
 
     try {
       const res = await fetch(`${API_URL}/ranking/score-candidates`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           jobId: id,
