@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 export default function ApplyPage() {
@@ -12,6 +12,15 @@ export default function ApplyPage() {
   const [method, setMethod] = useState<"manual" | "upload" | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Check authentication on component mount
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    setIsAuthenticated(!!token);
+    setLoading(false);
+  }, []);
 
   // ================= BASIC INFO =================
   const [basic, setBasic] = useState({
@@ -209,6 +218,14 @@ export default function ApplyPage() {
       return;
     }
 
+    // Check authentication before upload
+    const token = localStorage.getItem("token");
+    if (!token) {
+      alert("You must be logged in to upload a resume. Please log in and try again.");
+      router.push("/login");
+      return;
+    }
+
     setSubmitting(true);
     try {
       const formData = new FormData();
@@ -217,6 +234,9 @@ export default function ApplyPage() {
 
       const res = await fetch(`${API_URL}/talents/upload/pdf?type=pdf`, {
         method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
         body: formData,
       });
 
@@ -234,6 +254,15 @@ export default function ApplyPage() {
     }
   };
 
+  // Render loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background px-4 py-10 flex items-center justify-center">
+        <p className="text-gray-600">Loading...</p>
+      </div>
+    );
+  }
+
   // Render
   return (
     <div className="min-h-screen bg-background px-4 py-10">
@@ -244,7 +273,7 @@ export default function ApplyPage() {
         {!method && (
           <div className="space-y-4 mb-8">
             <p className="text-gray-600">Choose how you want to apply</p>
-            <div className="flex gap-4">
+            <div className="flex gap-4 flex-col sm:flex-row">
               <button
                 onClick={() => setMethod("manual")}
                 className="flex-1 py-4 rounded-xl bg-primary text-white font-semibold"
@@ -252,10 +281,22 @@ export default function ApplyPage() {
                 Fill Form Manually
               </button>
               <button
-                onClick={() => setMethod("upload")}
-                className="flex-1 py-4 rounded-xl bg-lightBlue text-primary font-semibold"
+                onClick={() => {
+                  if (!isAuthenticated) {
+                    alert("You must be logged in to upload a resume. Please log in first.");
+                    router.push("/login");
+                    return;
+                  }
+                  setMethod("upload");
+                }}
+                className={`flex-1 py-4 rounded-xl font-semibold transition ${
+                  isAuthenticated
+                    ? "bg-lightBlue text-primary hover:opacity-80"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed opacity-60"
+                }`}
+                disabled={!isAuthenticated}
               >
-                Upload PDF Resume
+                Upload PDF Resume {!isAuthenticated && "(Login Required)"}
               </button>
             </div>
           </div>
