@@ -14,6 +14,10 @@ export default function ApplyPage() {
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [popup, setPopup] = useState<{
+  message: string;
+  type: "success" | "error";
+} | null>(null);
 
   // Check authentication on component mount
   useEffect(() => {
@@ -241,14 +245,27 @@ export default function ApplyPage() {
       });
 
       if (!res.ok) {
-        window.alert("Unable to submit your application. Please try again later.");
+         setPopup({
+  message: "Unable to submit your application. Please try again later.",
+  type: "error",
+});
         return;
       }
-      alert("Resume uploaded successfully!");
-      router.push("/jobs");
+     setPopup({
+  message: "Resume uploaded successfully!",
+  type: "success",
+});
+
+setTimeout(() => {
+  setPopup(null);
+  router.push("/jobs");
+}, 2000);
     } catch (err) {
       console.error(err);
-      alert("Upload failed");
+     setPopup({
+  message: "Unable to submit your application. Please try again later.",
+  type: "error",
+});
     } finally {
       setSubmitting(false);
     }
@@ -265,16 +282,22 @@ export default function ApplyPage() {
 
   // Render
   return (
-    <div className="min-h-screen bg-background px-4 py-10">
-      <div className="max-w-4xl mx-auto bg-white rounded-2xl p-8">
-        <h1 className="text-3xl font-bold text-primary mb-6">Apply for this position</h1>
+    <>
+      {popup && (
+        <div className={`fixed top-4 right-4 p-4 rounded-lg shadow-lg ${popup.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+          {popup.message}
+        </div>
+      )}
+      <div className="min-h-screen bg-background px-4 py-10">
+        <div className="max-w-4xl mx-auto bg-white rounded-2xl p-8">
+          <h1 className="text-3xl font-bold text-primary mb-6">Apply for this position</h1>
 
-        {/* Method selection */}
-        {!method && (
-          <div className="space-y-4 mb-8">
-            <p className="text-gray-600">Choose how you want to apply</p>
-            <div className="flex gap-4 flex-col sm:flex-row">
-              <button
+          {/* Method selection */}
+          {!method && (
+            <div className="space-y-4 mb-8">
+              <p className="text-gray-600">Choose how you want to apply</p>
+              <div className="flex gap-4 flex-col sm:flex-row">
+                <button
                 onClick={() => setMethod("manual")}
                 className="flex-1 py-4 rounded-xl bg-primary text-white font-semibold"
               >
@@ -800,5 +823,6 @@ export default function ApplyPage() {
         )}
       </div>
     </div>
+    </>
   );
 }

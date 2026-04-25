@@ -54,24 +54,40 @@ export default function JobDetailPage() {
   // ───────────────── FETCH APPLICANTS ─────────────────
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        const res = await fetch(`${API_URL}/talents/job/${id}`);
-        if (!res.ok) throw new Error("Failed to fetch");
+      const token = localStorage.getItem("token");
+     try {
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
-        const data = await res.json();
-        console.log("Fetched talents:", data?.talents);
+  if (!token) {
+    console.error("No token found");
+    return;
+  }
 
-        const talents = (data?.talents || []).map((t: any) => ({
-          ...t,
-          job: {
-            _id: t.job?._id,
-            title: t.job?.title || "N/A",
-            company: t.job?.company || "N/A",
-          },
-        }));
+  const res = await fetch(`${API_URL}/talents/job/${id}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
 
-        setJobApplicants(talents);
-      } catch (err) {
+  if (!res.ok) throw new Error("Failed to fetch");
+
+  const data = await res.json();
+  console.log("Fetched talents:", data?.talents);
+
+  const talents = (data?.talents || []).map((t: any) => ({
+    ...t,
+    job: {
+      _id: t.job?._id,
+      title: t.job?.title || "N/A",
+      company: t.job?.company || "N/A",
+    },
+  }));
+
+  setJobApplicants(talents);
+
+}  catch (err) {
         console.error(err);
       } finally {
         setLoading(false);
@@ -84,7 +100,13 @@ export default function JobDetailPage() {
   // ───────────────── FETCH SAVED RANKINGS ─────────────────
   const fetchRankings = async () => {
     try {
-      const res = await fetch(`${API_URL}/ranking/job/${id}`);
+    const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/ranking/job/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
+      });
       if (!res.ok) return;
 
       const data = await res.json();
@@ -157,12 +179,15 @@ export default function JobDetailPage() {
 
     // 👇 IMPORTANT: backend expects jobId in body
     formData.append("jobId", id as string);
-
+    const token = localStorage.getItem("token");
     const res = await fetch(
       `${API_URL}/talents/upload/excel?type=xls`,
       {
         method: "POST",
         body: formData,
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       }
     );
 
@@ -179,7 +204,12 @@ export default function JobDetailPage() {
     setShowUploadPanel(false);
 
     // 🔄 refresh applicants (use SAME endpoint you used initially)
-    const refreshed = await fetch(`${API_URL}/talents/job/${id}`);
+    
+    const refreshed = await fetch(`${API_URL}/talents/job/${id}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
     const refreshedData = await refreshed.json();
 
     setJobApplicants(refreshedData?.talents || []);
