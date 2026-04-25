@@ -61,8 +61,8 @@ npm run dev
 Open [http://localhost:3000](http://localhost:3000).
 
 **Demo credentials:**
-- Email: `admin@umurava.com`
-- Password: `password123`
+- Email: `john@company.com`
+- Password: `123456`
 
 ---
 
